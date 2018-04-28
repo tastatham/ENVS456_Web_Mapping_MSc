@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8' /> <!-- Encoding -->
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.44.2/mapbox-gl.js'></script> <!-- Source: Mapbox GL JS -->
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.44.2/mapbox-gl.css' rel='stylesheet' /> <!-- Source: Add Mapbox CSS -->
+    <style>
+        body { margin:0; padding:0; }
+        #map { position:absolute; top:0; bottom:0; width:100%; }
+    </style>
+</head>
+
+<body>
+
+<script src='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v2.2.0/mapbox-gl-geocoder.min.js'></script> 
+<link rel='stylesheet' href='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v2.2.0/mapbox-gl-geocoder.css' type='text/css' /> 
+
+<style> 
+    .geocoder {
+        position:absolute;
+        z-index:1;
+        width:50%;
+        left:50%;
+        margin-left:-25%;
+        top:20px;
+    }
+    .mapboxgl-ctrl-geocoder { min-width:100%; }
+</style>
+
+
+<style> <!-- Popup Style -->
+/* Marker tweaks */
+.mapboxgl-popup-close-button {
+  display: none;
+}
+
+.mapboxgl-popup-content {
+  font: 400 15px/18px 'Source Sans Pro', 'Helvetica Neue', Sans-serif;
+  padding: 0;
+  width: 180px;
+}
+
+.mapboxgl-popup-content-wrapper {
+  padding: 1%;
+}
+
+.mapboxgl-popup-content h3 {
+  background: #717171;
+  color: #fff; 
+  margin: 0;
+  display: block;
+  padding: 10px;
+  border-radius: 3px 3px 0 0;
+  font-weight: 700;
+  margin-top: -15px;
+}
+
+.mapboxgl-popup-content h4 {
+  margin: 0;
+  display: block;
+  padding: 10px;
+  font-weight: 400;
+}
+
+.mapboxgl-popup-content div {
+  padding: 10px;
+}
+
+.mapboxgl-container .leaflet-marker-icon {
+  cursor: pointer;
+}
+
+.mapboxgl-popup-anchor-top > .mapboxgl-popup-content {
+  margin-top: 15px;
+}
+
+.mapboxgl-popup-anchor-top > .mapboxgl-popup-tip {
+  border-bottom-color: #91c949;
+}
+
+</style>
+
+<style> 
+
+.legend {
+    background-color: #fff;
+    border-radius: 3px;
+    bottom: 30px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.10);
+    font: 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+    padding: 10px;
+    position: absolute;
+    right: 10px;
+    z-index: 1;
+}
+
+.legend h4 {
+    margin: 0 0 10px;
+}
+
+.legend div span {
+    border-radius: 50%;
+    display: inline-block;
+    height: 10px;
+    margin-right: 5px;
+    width: 10px;
+}
+
+</style>
+
+<style> 
+#title {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 350px;
+            overflow: auto;
+            background: rgba(255, 255, 255, 0.8);
+            font-family: "Arial";
+            padding-left: 12px;
+        }
+</style>
+
+
+<div id='state-legend' class='legend'>
+    <strong>IMD Score </strong>
+    <div><span style='background: #FED976'></span>0-19</div>
+    <div><span style='background: #FD8D3C'></span>20-34</div>
+    <div><span style='background: #FC4E2A'></span>35-49</div>
+    <div><span style='background: #E31A1C'></span>50-64</div>
+    <div><span style='background: #BD0026'></span>65-82</div>
+	<small>Source: <a href="https://data.cdrc.ac.uk/dataset/cdrc-english-indices-of-deprivation-2015-geodata-pack-liverpool-e08000012">Consumer Data Research Centre</a></small>
+</div>
+
+<!-- Map ID -->
+<div id='map'></div>
+<!-- Geocoder ID -->
+<div id='geocoder' class='geocoder'></div>
+
+
+ <div id='title'>
+        <h1>Indices of Multiple Deprivation (2015)</h1>
+        <h2>Liverpool</h2>
+        <div id="tooltip-name"></div>
+        <div id='tooltip'></div>
+		
+<script>
+mapboxgl.accessToken = 'pk.eyJ1IjoidGFzdGF0aGFtMSIsImEiOiJjamZ1ejY2bmYxNHZnMnhxbjEydW9sM29hIn0.w9ndNH49d91aeyvxSjKQqg'; //public access token
+  
+  // Set bounds to Liverpool
+  var bounds = [
+            [-3.237485, 53.220836], // Southwest coordinates
+			[-2.633053, 53.543151]] // Northeast coordinates
+			
+  var map = new mapboxgl.Map({
+    container: 'map', //type of container
+    style: 'mapbox://styles/tastatham1/cjg3vyld813id2spdnhy4sf9u', //user generated style from Mapbox
+    center: [-2.981979, 53.406315], // Set Zoom centre point
+    zoom: 11, // Sets automatic zoom
+	minZoom: 11, // Sets min zoom
+    maxZoom: 15, // Sets max zoom
+	maxBounds: bounds // Sets bounds as max
+});
+
+
+map.addControl(new mapboxgl.NavigationControl({ //Add navigation control - North Arrow
+            position: 'top-right' // position of navigation top-right
+        }));  
+  
+map.addControl(new mapboxgl.FullscreenControl()); //Add full screen mode
+
+map.addControl(new mapboxgl.ScaleControl({ //Add scale bar
+    maxWidth: 300,
+    unit: 'imperial'
+}));
+
+var geocoder = new MapboxGeocoder({ //Define Geocoder
+    accessToken: mapboxgl.accessToken,
+	bbox: [-3.237485, 53.220836, -2.633053, 53.543151] //// limit results to the geographic bounds
+});
+
+document.getElementById('geocoder').appendChild(geocoder.onAdd(map)); //Add Geocoder on top of map
+
+
+map.on('load', function () {
+
+    // When a click event occurs on a feature in the imddata layer, open p
+    map.on('click', 'imd1', function (e) {
+        new mapboxgl.Popup()
+            .setLngLat(e.lngLat)
+			.setHTML("<h3><b>IMD Score:</b> "+e.features[0].properties.imd_score + "</h3><h4>Crime Count:<b> "+e.features[0].properties.Crime + "</b></h4><h4>Income:<b> "+e.features[0].properties.income + "</b></h4><h4>House Price: <b> £"+e.features[0].properties.Sale_Price + "</b></h4>") 
+            .addTo(map);
+    });
+
+    // Change the cursor to a pointer when the mouse is over the states layer.
+    map.on('mouseenter', 'im1', function () {
+        map.getCanvas().style.cursor = 'pointer';
+    });
+
+    // Change it back to a pointer when it leaves.
+    map.on('mouseleave', 'imd1', function () {
+        map.getCanvas().style.cursor = '';
+    });
+});
+
+
+</script>
+
+</body>
+</html>
