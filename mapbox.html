@@ -101,12 +101,13 @@
   margin: +10px;
   display: block;
   padding: 10px;
-  width: 187px;
+  width: 140px;
   border-radius: 3px 3px 0 0;
-  font-weight: 700;
+  font: 30px;
   margin-top: -10px;
-  margin-right:-40px;
+  margin-right:-10px;
   margin-left:-10px;
+  padding-left:5em;
 
 }
 
@@ -116,6 +117,7 @@
     height: 10px;
     margin-right: 10px;
     width: 10px;
+	
 }
 
 </style>
@@ -133,17 +135,17 @@
             overflow: auto;
             background: #fff;
             font-family: "Arial";
-            padding-left: 25px;
+            padding-left: 20px;
+			padding-right: 20px;
 			padding-bottom: 15px;
 			border-radius: 3px;
         }
 </style>
 
-
 <div id='state-legend' class='legend'>
-    <h3>IMD Score </h3>
-    <div><span style='background: #FED976'></span>0-19</div>
-    <div><span style='background: #FD8D3C'></span>20-34</div>
+    <h3>IMD Score</h3>
+    <div><span style='background: #FED976'></span><b>0-19<b/></div>
+    <div><span style='background: #FD8D3C'></span><b>20-34<b/></div>
     <div><span style='background: #FC4E2A'></span>35-49</div>
     <div><span style='background: #E31A1C'></span>50-64</div>
     <div><span style='background: #BD0026'></span>65-82</div>
@@ -173,8 +175,8 @@ mapboxgl.accessToken = 'pk.eyJ1IjoidGFzdGF0aGFtMSIsImEiOiJjamZ1ejY2bmYxNHZnMnhxb
     container: 'map', //type of container
     style: 'mapbox://styles/tastatham1/cjg3vyld813id2spdnhy4sf9u', //user generated style from Mapbox
     center: [-2.981979, 53.406315], // Set Zoom centre point
-    zoom: 11, // Sets automatic zoom
-	minZoom: 11, // Sets min zoom
+    zoom: 10.9, // Sets automatic zoom
+	minZoom: 10.9, // Sets min zoom
     maxZoom: 15, // Sets max zoom
 	maxBounds: bounds // Sets bounds as max
 });
