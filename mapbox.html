@@ -84,8 +84,11 @@
 <style> 
 
 .legend {
-    background-color: #fff;
+    background: rgba(255, 255, 255, 0.5);
     border-radius: 3px;
+	border-style: solid;
+    border-width: 5px;
+	border-color: #1da1ab;
     bottom: 30px;
     box-shadow: 0 1px 2px rgba(0,0,0,0.10);
     font: 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
@@ -93,17 +96,20 @@
     position: absolute;
     right: 10px;
     z-index: 1;
+    opacity = 0.5;
+
 }
 
+
 .legend h3 {
- background: #BD0026;
+  background: #808080;
   color: #fff; 
   margin: +10px;
   display: block;
   padding: 10px;
   width: 140px;
   border-radius: 3px 3px 0 0;
-  font: 30px;
+  font-size: large;
   margin-top: -10px;
   margin-right:-10px;
   margin-left:-10px;
@@ -112,45 +118,55 @@
 }
 
 .legend div span {
-    border-radius: 50%;
-    display: inline-block;
-    height: 10px;
-    margin-right: 10px;
-    width: 10px;
-	
-}
+  display:block;
+  float:left;
+  height:15px;
+  width:100%;
+  text-align:center;
+  font-size:12px;
+  background: rgba(255, 255, 255, 0.5);
+  }
 
 </style>
 
 <style> 
 #title {
-            position: absolute;
-			box-shadow: 0 1px 2px rgba(0,0,0,0.10);
-			border-radius: 3px;
-			opacity: 1;
-            top: 15px;
-			
-            left: 20px;
-            width: 350px;
-            overflow: auto;
-            background: #fff;
-            font-family: "Arial";
-            padding-left: 20px;
-			padding-right: 20px;
-			padding-bottom: 15px;
-			border-radius: 3px;
+	position: absolute;
+	box-shadow: 0 1px 2px rgba(0,0,0,0.10);
+	border-radius: 3px;
+	opacity: 1;
+        top: 15px;
+        left: 20px;
+        width: 350px;
+        overflow: auto;
+        background: rgba(255, 255, 255, 0.5);
+	
+	border-radius: 3px;
+	border-style: solid;
+        border-width: 5px;
+	border-color: #1da1ab;
+        font-family: "Arial";
+        padding-left: 20px;
+	padding-right: 20px;
+	padding-bottom: 15px;
+	border-radius: 3px;
         }
 </style>
 
+
 <div id='state-legend' class='legend'>
-    <h3>IMD Score</h3>
-    <div><span style='background: #fff5f0'></span><b>3-19<b/></div>
-    <div><span style='background: #fdccb8'></span><b>20-31<b/></div>
-    <div><span style='background: #fc8f6f'></span><b>32-44<b/></div>
-    <div><span style='background: #f44d37'></span><b>45-55<b/></div>
-    <div><span style='background: #c5161b'></span><b>56-66<b/></div>
-	<div><span style='background: #67000d'></span><b>67-82<b/></div>
-	<small>Source: <a href="https://data.cdrc.ac.uk/dataset/cdrc-english-indices-of-deprivation-2015-geodata-pack-liverpool-e08000012">Consumer Data Research Centre</a></small>
+    <h3>Map Key</h3>
+    <div><span style='background: rgba(165, 0, 38, 0.7)'><b>Most Deprived Decile<b/></span></div>
+    <div><span style='background: rgba(215, 48, 39, 0.7)'><b>2nd<b/></span></div>
+    <div><span style='background: rgba(244, 109, 67, 0.7)'><b>3rd<b/></span></div>
+    <div><span style='background: rgba(253, 174, 97, 0.7)'><b>4th<b/></span></div>
+    <div><span style='background: rgba(254, 224, 139, 0.7)'><b>5th<b/></span></div>
+    <div><span style='background: rgba(217, 239, 139, 0.7)'>6th<b/></span></div>
+    <div><span style='background: rgba(166, 217, 106, 0.7)'><b>7th<b/></span></div>
+    <div><span style='background: rgba(102, 189, 99, 0.7)'><b>8th<b/></span></div>
+    <div><span style='background: rgba(26, 152, 80, 0.7)'><b>9th<b/></span></div>
+    <div><span style='background: rgba(0, 104, 55, 0.7)'><b>Least Deprived Decile<b/></span></div>
+    <small>Source: <a href="https://data.cdrc.ac.uk/dataset/cdrc-english-indices-of-deprivation-2015-geodata-pack-liverpool-e08000012">Consumer Data Research Centre</a></small>
 </div>
 
 <!-- Map ID -->
@@ -159,8 +175,9 @@
 <div id='geocoder' class='geocoder'></div>
 
  <div id='title'>
-        <h2>Deprivation in Liverpool</h2>
-        <small>According to <a href="https://www.ons.gov.uk/releases/townsandcitiesanalysis">ONS (2015)</a>, Liverpool is the third most deprived town in England. To explore the distribution of deprivation in Liverpool further, the Lower Layer Super Output Area level (LSOA) is explored using <a href="https://data.cdrc.ac.uk/dataset/cdrc-english-indices-of-deprivation-2015-geodata-pack-liverpool-e08000012">Indices of Multiple Deprivation (2015)</a>. Additionally total crime count for 2015 was obtained using an <a href="https://data.police.uk/docs/">API</a> and average house prices was aggregated at the LSOA level. </small>
+        <h2>Deprivation in Liverpool (2015)</h2>
+        <small>Liverpool is the third most deprived town in England <a href="https://www.ons.gov.uk/releases/townsandcitiesanalysis">(ONS 2015)</a>. This interactive choropleth of IMD Rank <a href="https://data.cdrc.ac.uk/dataset/cdrc-english-indices-of-deprivation-2015-geodata-pack-liverpool-e08000012">(Indices of Multiple Deprivation 2015)</a> to visualise the distribution of deprivation in Liverpool. Additionally total crime count for 2015 was obtained using an <a href="https://data.police.uk/docs/">API</a> and average house prices was aggregated at the LSOA level. </small>
+		
         <div id="tooltip-name"></div>
         <div id='tooltip'></div>
 		
@@ -177,9 +194,9 @@ mapboxgl.accessToken = 'pk.eyJ1IjoidGFzdGF0aGFtMSIsImEiOiJjamZ1ejY2bmYxNHZnMnhxb
     style: 'mapbox://styles/tastatham1/cjg3vyld813id2spdnhy4sf9u', //user generated style from Mapbox
     center: [-2.981979, 53.406315], // Set Zoom centre point
     zoom: 10.9, // Sets automatic zoom
-	minZoom: 10.9, // Sets min zoom
+    minZoom: 10.9, // Sets min zoom
     maxZoom: 15, // Sets max zoom
-	maxBounds: bounds // Sets bounds as max
+    maxBounds: bounds // Sets bounds as max
 });
 
 
@@ -208,7 +225,7 @@ map.on('load', function () {
     map.on('click', 'imd1', function (e) {
         new mapboxgl.Popup()
             .setLngLat(e.lngLat)
-			.setHTML("<h3><b>IMD Score:</b> "+e.features[0].properties.imd_score + "</h3><h4><b>Education:</b> "+e.features[0].properties.education + "</h4><h4><b>Income:</b> "+e.features[0].properties.income + "</h4><h4><b>Crime Count:</b> "+e.features[0].properties.Crime + "</h4><h4><b>House Price:</b> £"+e.features[0].properties.Sale_Price + "</h4>") 
+			.setHTML("<h3><b>IMD Rank:</b> "+e.features[0].properties.imd_rank + "</h3><h4><b>IMD Score:</b> "+e.features[0].properties.imd_score + "</h4><h4><b>Education:</b> "+e.features[0].properties.education + "</h4><h4><b>Income:</b> "+e.features[0].properties.income + "</h4><h4><b>Crime Count:</b> "+e.features[0].properties.Crime + "</h4><h4><b>House Price:</b> £"+e.features[0].properties.Sale_Price + "</h4>") 
             .addTo(map);
     });
 
