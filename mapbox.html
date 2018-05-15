@@ -225,7 +225,7 @@ map.on('load', function () {
     map.on('click', 'imd1', function (e) {
         new mapboxgl.Popup()
             .setLngLat(e.lngLat)
-			.setHTML("<h3><b>IMD Rank:</b> "+e.features[0].properties.imd_rank + "</h3><h4><b>IMD Score:</b> "+e.features[0].properties.imd_score + "</h4><h4><b>Education:</b> "+e.features[0].properties.education + "</h4><h4><b>Income:</b> "+e.features[0].properties.income + "</h4><h4><b>Crime Count:</b> "+e.features[0].properties.Crime + "</h4><h4><b>House Price:</b> £"+e.features[0].properties.Sale_Price + "</h4>") 
+			.setHTML("<h3><b>IMD Rank:</b> "+e.features[0].properties.imd_rank + "</h3><h4><b>IMD Score:</b> "+e.features[0].properties.imd_score + "</h4><h4><b>Income:</b> "+e.features[0].properties.income + "</h4><h4><b>Crime Count:</b> "+e.features[0].properties.Crime + "</h4><h4><b>House Price:</b> £"+e.features[0].properties.Sale_Price + "</h4>") 
             .addTo(map);
     });
 
