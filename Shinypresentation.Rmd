@@ -260,6 +260,8 @@ dec2$month[dec2$month==0] <- '2017-12'
 ```
 
 # LEAFLET - VISUALIZE DATA
+* NOTE MAPBOX BASE MAPS WILL NOT LOAD IN R - NOT AN ERROR - WILL LOAD IN KNITTED R-MARKDOWNS AND SHINY APPS 
+
 ```{r}
 # define colour scheme
 pal <- colorQuantile("Reds", domain = jan2$count, n=6)
