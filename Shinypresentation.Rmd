@@ -3,11 +3,6 @@ This R markdown document sets out to download crime information about Liverpool 
 
 * No knowledge of R is required to run this R-markdown and all datasets are downloaded from the web :) - Just click run on each chunk or run all chunks at once.
 
-TO DO LIST
-* TO SIMPLY POLYGONS FURTHER 
-* NA VALUES FOR MONTHS
-* ADD ALL POLYGONS TO LEAFLET
-* MAKE SHINY APP 
 # LOAD PACKAGES
 ```{r}
 ## Load several packages
