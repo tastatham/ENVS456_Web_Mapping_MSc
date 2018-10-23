@@ -54,6 +54,7 @@ map.crime <- function(lat=53.401439, lng=-2.988477, date="2017-01") { # lat, lng
 }
 
 # apply police API function to list of df with the defined months crime information is desired
+## NOTE - THIS WILL TAKE SOME TIME
 ff <- list(c1 <- map.crime(date=("2017-01")),
               c2 <- map.crime(date=("2017-02")),
               c3 <- map.crime(date=("2017-03")),
