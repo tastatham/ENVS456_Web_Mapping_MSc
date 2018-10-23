@@ -1,0 +1,548 @@
+# INTRODUCTION
+This R markdown document sets out to download crime information about Liverpool from Jan-Dec 2017. The dataset we use is UK Police Data, extracted using an API. We information includes the lat and long of where the crime was reported. Therefore, any spatial representations of crime will be skewed, since most crimes are reported at a Police station! Nevertheless, let's explore where crimes are more likely to take place in Liverpool. 
+
+* No knowledge of R is required to run this R-markdown and all datasets are downloaded from the web :) - Just click run on each chunk or run all chunks at once.
+
+TO DO LIST
+* TO SIMPLY POLYGONS FURTHER 
+* NA VALUES FOR MONTHS
+* ADD ALL POLYGONS TO LEAFLET
+* MAKE SHINY APP 
+# LOAD PACKAGES
+```{r}
+## Load several packages
+ipak <- function(pkg){
+  new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+  if (length(new.pkg)) 
+    install.packages(new.pkg, dependencies = TRUE, repos="http://cran.rstudio.com/")
+  sapply(pkg, require, character.only = TRUE)
+}
+packages <- c("jsonlite", "httr", "lubridate", "tidyverse", "RCurl", "GISTools","rgeos", "rjson","rgdal", "leaflet", "leaflet.extras", "shiny", "leaflet.minicharts","plotly", "RColorBrewer", "knitr", "ggplot2", "magrittr", "plotly","mapview")
+ipak(packages)
+```
+
+# POLICE API FUNCTION
+```{r}
+# define function for getting lat and long
+getLonLat <- function(x) as.numeric(c(x$location$longitude, x$location$latitude))
+# define function for obtaining crime category, street name, location type and month
+getAttr <- function(x) c( x$category, x$location$street$name, x$location_type, x$month)
+
+####### FUNCTION WRAPPER TO DOWNLOAD ALL CRIME DATA IN LIVERPOOL
+# define default lat, long and date 
+map.crime <- function(lat=53.401439, lng=-2.988477, date="2017-01") { # lat, lng and date act as dummy criteria)
+
+# getForm() to retrieve crime data + custom polygon extracted from IMD 2015 LSOA data
+    df <- getForm( 'http://data.police.uk/api/crimes-street/all-crime?poly=53.4756989923,-3.02206976313:53.475739291,-2.87295531616:53.3804245543,-2.81669712724:53.3244578818,-2.80580844551:53.3245418051,-2.87325777954:53.3820482956,-2.99594066867:53.3834915693,-2.99842835176&date=', # defined bounding box for retreiving crime data within the Liverpool area 
+                            lat=lat, # 
+                            long=lng,
+                            date=date) # defined date range
+    
+    # convert from json to df
+    crimes <- fromJSON(df)
+    
+    # extract location info - lat&lng
+    crimes.loc <- t(sapply(crimes,getLonLat)) 
+    # extract defined attributes
+    crimes.attr <- as.data.frame(t(sapply(crimes,getAttr))) 
+    # change attribute column names
+    colnames(crimes.attr) <- c("category", "street", "location_type", "month")
+    
+    # convert to SpatialPointsDataFrame
+    df <- SpatialPointsDataFrame(crimes.loc,crimes.attr) 
+    # Specify CRS - WSG84 for web-mapping purposes
+    proj4string(df) <- CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
+    # create 2 new columns, lat&lng
+    df$lng <- as.numeric(as.character(df$coords.x1))
+    df$lat <- as.numeric(as.character(df$coords.x2))
+    return(df)
+}
+
+# apply police API function to list of df with the defined months crime information is desired
+ff <- list(c1 <- map.crime(date=("2017-01")),
+              c2 <- map.crime(date=("2017-02")),
+              c3 <- map.crime(date=("2017-03")),
+              c4 <- map.crime(date=("2017-04")),
+              c5 <- map.crime(date=("2017-05")),
+              c6 <- map.crime(date=("2017-06")),
+              c7 <- map.crime(date=("2017-07")),
+              c8 <- map.crime(date=("2017-08")),
+              c9 <- map.crime(date=("2017-09")),
+              c10 <- map.crime(date=("2017-10")),
+              c11 <- map.crime(date=("2017-11")),
+              c12 <- map.crime(date=("2017-12")) )
+#name each df in list
+names(ff) <- c("c1","c2", "c3", "c4", "c5","c6", "c7", "c8", "c9", "c10", "c11", "c12")
+# export df in list to the global environment
+list2env(ff ,.GlobalEnv)
+```
+
+# DOWNLOAD LSOAS FOR THE WHOLE UK & OVERLAY WITH CRIME DATA- LARGE FILE
+```{r}
+# downloaded LSOA shapefile for all England & Wales LSOAs from Arcgis
+## don't worry about the time taking to download it - it's quite a large file 229.3 mb to be exact
+tmp <- tempfile()
+download.file("http://geoportal1-ons.opendata.arcgis.com/datasets/da831f80764346889837c72508f046fa_0.zip", destfile = tmp)
+unzip(zipfile = tmp, exdir = ".")
+# read downloaded shapefile
+LSOA <- readOGR('./Lower_Layer_Super_Output_Areas_December_2011_Full_Clipped__Boundaries_in_England_and_Wales.shp')
+# filter liverpool lsoas only
+liv_LSOA <- dplyr::filter(LSOA@data, grepl('Liverpool', lsoa11nm))
+# convert to list  
+liv_LSOA1 <- as.character(liv_LSOA$lsoa11cd)
+# subset LSOA shapefile from created list
+LSOA <- LSOA[LSOA$lsoa11cd %in% liv_LSOA1, ]
+# transform CRS of data to WSG84
+LSOA <- spTransform(LSOA, CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"))
+# get only LSOA column
+LSOA <- LSOA[,c('lsoa11cd')]
+
+library(rmapshaper)
+library(classInt)
+# simplify geometry 
+LSOA <- ms_simplify(LSOA, keep = 0.05, method = 'dp', weighting = 0.7,
+  keep_shapes = FALSE, no_repair = FALSE, snap = TRUE, explode = FALSE,
+  force_FC = TRUE, drop_null_geometries = TRUE, snap_interval = NULL,
+  sys = FALSE)
+# transform to right projection
+LSOA <- spTransform(LSOA, CRS("+proj=longlat +datum=WGS84"))
+
+# check it plots ok
+plot(LSOA)
+```
+
+# DATA WRANGLING 
+```{r}
+# join all months together
+crime2017 <-  rbind(c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12)
+# ensure right projection
+crime2017 <- spTransform(crime2017, CRS("+proj=longlat +datum=WGS84"))
+
+# since the number of crimes are roughly 90,000 spatial points, this will not give a good visualization of where crimes are more likely. ALthough we could use KDE or IDW to visualize this, we chose to use simple choropleth mapping. This allows us to explore how the Geography of crime changes over time using interactive mapping. 
+
+# we are also interested in the top 5 reported crime categories
+crime2017 <- crime2017[crime2017$category == "anti-social-behaviour" | crime2017$category =="burglary" | crime2017$category =="violent-crime" | crime2017$category =="shoplifting" | crime2017$category =="criminal-damage-arson", ]
+# convert to character for subsetting
+crime2017$category <- as.character(crime2017$category)
+crime2017$month <- as.character(crime2017$month)
+# change row names 
+crime2017$category[crime2017$category == "anti-social-behaviour"] <- "anti"
+crime2017$category[crime2017$category == "burglary"] <- "burg"
+crime2017$category[crime2017$category == "violent-crime"] <- "vio"
+crime2017$category[crime2017$category == "shoplifting"] <- "shop"
+crime2017$category[crime2017$category == "criminal-damage-arson"] <- "crim"
+
+# create count column 
+crime2017$count <- 1
+# overlay spatial point data with lsoa information
+crime2017$street <- over(crime2017, LSOA[,"lsoa11cd"])
+crime2017$lsoa11cd <- crime2017$street$lsoa11cd
+
+# 1.0 aggregate crime by type
+# aggregate crime counts by lsoa, category and month
+crime2017 <- aggregate(count ~ category+lsoa11cd+month, data=crime2017, FUN=sum) 
+# subset by month
+jan <- crime2017[crime2017$month == '2017-01', ]
+feb <- crime2017[crime2017$month == '2017-02', ]
+mar <- crime2017[crime2017$month == '2017-03', ]
+apr <- crime2017[crime2017$month == '2017-04', ]
+may <- crime2017[crime2017$month == '2017-05', ]
+jun <- crime2017[crime2017$month == '2017-06', ]
+jul <- crime2017[crime2017$month == '2017-07', ]
+aug <- crime2017[crime2017$month == '2017-08', ]
+sep <- crime2017[crime2017$month == '2017-09', ]
+oct <- crime2017[crime2017$month == '2017-10', ]
+nov <- crime2017[crime2017$month == '2017-11', ]
+dec <- crime2017[crime2017$month == '2017-12', ]
+
+# load library to reshape a data frame by aggregated form
+library(reshape)
+# cast with aggregation - this ensures that all MSOAs in each month have a value - those with no observations = 0
+jan <- as.data.frame(cast(jan,lsoa11cd~category))
+feb <- as.data.frame(cast(feb,lsoa11cd~category))
+mar <- as.data.frame(cast(mar,lsoa11cd~category))
+apr <- as.data.frame(cast(apr,lsoa11cd~category))
+may <- as.data.frame(cast(may,lsoa11cd~category))
+jun <- as.data.frame(cast(jun,lsoa11cd~category))
+jul <- as.data.frame(cast(jul,lsoa11cd~category))
+aug <- as.data.frame(cast(aug,lsoa11cd~category))
+sep <- as.data.frame(cast(sep,lsoa11cd~category))
+oct <- as.data.frame(cast(oct,lsoa11cd~category))
+nov <- as.data.frame(cast(nov,lsoa11cd~category))
+dec <- as.data.frame(cast(dec,lsoa11cd~category))
+
+# combine all crime counts
+c_all <- aggregate(count~lsoa11cd+month,crime2017,FUN=sum)
+
+# subset by month
+jan2 <- c_all[c_all$month == '2017-01', ] 
+feb2 <- c_all[c_all$month == '2017-02', ]
+mar2 <- c_all[c_all$month == '2017-03', ]
+apr2 <- c_all[c_all$month == '2017-04', ]
+may2 <- c_all[c_all$month == '2017-05', ]
+jun2 <- c_all[c_all$month == '2017-06', ]
+jul2 <- c_all[c_all$month == '2017-07', ]
+aug2 <- c_all[c_all$month == '2017-08', ]
+sep2 <- c_all[c_all$month == '2017-09', ]
+oct2 <- c_all[c_all$month == '2017-10', ]
+nov2 <- c_all[c_all$month == '2017-11', ]
+dec2 <- c_all[c_all$month == '2017-12', ]
+# merge crime count and type together
+jan2 <- merge(jan2,jan,by='lsoa11cd')
+feb2 <- merge(feb2,jan,by='lsoa11cd')
+mar2 <- merge(mar2,jan,by='lsoa11cd')
+apr2 <- merge(apr2,jan,by='lsoa11cd')
+may2 <- merge(may2,jan,by='lsoa11cd')
+jun2 <- merge(jun2,jan,by='lsoa11cd')
+jul2 <- merge(jul2,jan,by='lsoa11cd')
+aug2 <- merge(aug2,jan,by='lsoa11cd')
+sep2 <- merge(sep2,jan,by='lsoa11cd')
+oct2 <- merge(oct2,jan,by='lsoa11cd')
+nov2 <- merge(nov2,jan,by='lsoa11cd')
+dec2 <- merge(dec2,jan,by='lsoa11cd')
+
+
+# make each month spatial by joining with the LSOA shapefile 
+jan2 <- merge(LSOA@data,jan2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+feb2 <- merge(LSOA@data,feb2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+mar2 <- merge(LSOA@data,mar2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+apr2 <- merge(LSOA@data,apr2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+may2 <- merge(LSOA@data,may2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+jun2 <- merge(LSOA@data,jun2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+jul2 <- merge(LSOA@data,jul2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+aug2 <- merge(LSOA@data,aug2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+sep2 <- merge(LSOA@data,sep2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+oct2 <- merge(LSOA@data,oct2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+nov2 <- merge(LSOA@data,nov2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+dec2 <- merge(LSOA@data,dec2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+
+# create simple function
+na.function <- function(x){
+  x[is.na(x)] = 0
+  return(x)
+}
+
+# apply na function to all dfs
+jan2 <- na.function(jan2)
+feb2 <- na.function(feb2)
+mar2 <- na.function(mar2)
+apr2 <- na.function(apr2)
+may2 <- na.function(may2)
+jun2 <- na.function(jun2)
+jul2 <- na.function(jul2)
+aug2 <- na.function(aug2)
+sep2 <- na.function(sep2)
+oct2 <- na.function(oct2)
+nov2 <- na.function(nov2)
+dec2 <- na.function(dec2)
+
+# make each month spatial by joining with the LSOA shapefile 
+jan2 <- merge(LSOA,jan2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+feb2 <- merge(LSOA,feb2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+mar2 <- merge(LSOA,mar2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+apr2 <- merge(LSOA,apr2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+may2 <- merge(LSOA,may2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+jun2 <- merge(LSOA,jun2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+jul2 <- merge(LSOA,jul2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+aug2 <- merge(LSOA,aug2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+sep2 <- merge(LSOA,sep2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+oct2 <- merge(LSOA,oct2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+nov2 <- merge(LSOA,nov2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+dec2 <- merge(LSOA,dec2,by='lsoa11cd',all=TRUE,duplicateGeoms = TRUE)
+# convert all 0 values to correct month names 
+jan2$month[jan2$month==0] <- '2017-01'
+feb2$month[feb2$month==0] <- '2017-02'
+mar2$month[mar2$month==0] <- '2017-03'
+apr2$month[apr2$month==0] <- '2017-04'
+may2$month[may2$month==0] <- '2017-05'
+jun2$month[jun2$month==0] <- '2017-06'
+jul2$month[jul2$month==0] <- '2017-07'
+aug2$month[aug2$month==0] <- '2017-08'
+sep2$month[sep2$month==0] <- '2017-09'
+oct2$month[oct2$month==0] <- '2017-10'
+nov2$month[nov2$month==0] <- '2017-11'
+dec2$month[dec2$month==0] <- '2017-12'
+```
+
+# LEAFLET - VISUALIZE DATA
+```{r}
+# define colour scheme
+pal <- colorQuantile("Reds", domain = jan2$count, n=6)
+pal1 <- colorQuantile("Reds", domain = feb2$count, n=6)
+pal2 <- colorQuantile("Reds", domain = mar2$count, n=6)
+pal3 <- colorQuantile("Reds", domain = apr2$count, n=6)
+pal4 <- colorQuantile("Reds", domain = may2$count, n=6)
+pal5 <- colorQuantile("Reds", domain = jun2$count, n=6)
+pal6 <- colorQuantile("Reds", domain = jul2$count, n=6)
+pal7 <- colorQuantile("Reds", domain = aug2$count, n=6)
+pal8 <- colorQuantile("Reds", domain = sep2$count, n=6)
+pal9 <- colorQuantile("Reds", domain = oct2$count, n=6)
+pal10 <- colorQuantile("Reds", domain = nov2$count, n=6)
+pal11 <- colorQuantile("Reds", domain = dec2$count, n=6)
+
+#label function
+#label function
+labs <- function(df4){
+ sprintf("<span style='color: #858585; font: Arial;font-size: 12pt'><strong>Crime Type</strong><br/>
+           <span style='color: #000000; font: Arial;font-size: 8pt'><strong>Anti Social Behaviour: %g</strong><br/> 
+           <span style='color: #000000; font: Arial; font-size: 8pt'><strong>Burglary: %g</strong><br/>
+           <span style='color: #000000; font: Arial; font-size: 8pt'><strong>Violent Crime: %g</strong><br/>
+           <span style='color: #000000; font: Arial; font-size: 8pt'><strong>Shoplifting: %g</strong><br/>
+           <span style='color: #000000; font: Arial; font-size: 8pt'><strong>Criminal Damage: %g</strong>",
+    df4$anti, df4$burg, df4$vio, df4$shop, df4$crim) %>% 
+    lapply(htmltools::HTML)
+}
+
+#apply label function
+janL <- labs(jan2)
+febL <- labs(feb2)
+marL <- labs(mar2)
+aprL <- labs(apr2)
+mayL <- labs(may2)
+junL <- labs(jun2)
+julL <- labs(jul2)
+augL <- labs(aug2)
+sepL <- labs(sep2)
+octL <- labs(oct2)
+novL <- labs(nov2)
+decL <- labs(dec2)
+
+  
+# vector tileset from mapbox
+MBaccessToken <- "pk.eyJ1IjoiaWJyZWNraGUiLCJhIjoidVNHX1VpRSJ9.9fPQ1A3rdxyCAzPkeYSYEQ"
+MBurlTemplate <- "https://api.mapbox.com/styles/v1/mapbox/dark-v9/tiles/{z}/{x}/{y}?access_token="
+MBTemplate <- paste(MBurlTemplate,MBaccessToken,sep="")
+
+#Define leaflet 
+liverpoolCrime2017 <- leaflet() %>% 
+  addTiles(MBTemplate, options=tileOptions(minZoom=11, maxZoom=18)) %>% setView(-2.959761, 53.404049, 11)
+
+liverpoolCrime2017 %>%
+   #Jan 2017
+   addPolygons(data=jan2, 
+   fillColor = ~pal(jan2$count),
+   weight=0,
+   fillOpacity = 0.6, 
+   color = "white",
+   dashArray = "0.1",
+     highlight = highlightOptions(
+    weight = 5,
+    color = "#666",
+    dashArray = "",
+    fillOpacity = 0.7,
+    bringToFront = TRUE),
+  label= janL,
+  group = "<span style='color:#858585;background:white;font:Arial;font-size:10pt'><strong>January</strong></span>") %>%
+  
+    
+     #Feb 2017
+   addPolygons(data=feb2, 
+   fillColor = ~pal1(feb2$count),
+   weight = 0.2,
+   color = "white",
+   dashArray = "0.1",
+   fillOpacity = 0.6, 
+     highlight = highlightOptions(
+    weight = 5,
+    color = "#666",
+    dashArray = "",
+    fillOpacity = 0.7,
+    bringToFront = TRUE),
+  label= febL,
+  group= "<span style='color:#858585;background:white;font:Arial;font-size:10pt'><strong>February</strong></span>") %>%
+  
+       #Mar 2017
+   addPolygons(data=mar2, 
+   fillColor = ~pal2(mar2$count),
+   weight = 0.2,
+   fillOpacity = 0.6, 
+   color = "white",
+   dashArray = "0.1",
+     highlight = highlightOptions(
+    weight = 5,
+    color = "#666",
+    dashArray = "",
+    fillOpacity = 0.7,
+    bringToFront = TRUE),
+  label= marL,
+  group= "<span style='color:#858585;background:white;font:Arial;font-size:10pt'><strong>March</strong></span>") %>%
+  
+         #Apr 2017
+   addPolygons(data=apr2, 
+   fillColor = ~pal3(apr2$count),
+   weight = 0.2,
+   fillOpacity = 0.6,
+   color = "white",
+   dashArray = "0.1",
+     highlight = highlightOptions(
+    weight = 5,
+    color = "#666",
+    dashArray = "",
+    fillOpacity = 0.7,
+    bringToFront = TRUE),
+  label= aprL,
+  group= "<span style='color:#858585;background:white;font:Arial;font-size:10pt'><strong>April</strong></span>") %>%
+  
+         #May 2017
+   addPolygons(data=may2, 
+   fillColor = ~pal4(may2$count),
+   weight = 0.2,
+   fillOpacity = 0.6, 
+   color = "white",
+   dashArray = "0.1",
+     highlight = highlightOptions(
+    weight = 5,
+    color = "#666",
+    dashArray = "",
+    fillOpacity = 0.7,
+    bringToFront = TRUE),
+  label= mayL,
+  group= "<span style='color:#858585;background:white;font:Arial;font-size:10pt'><strong>May</strong></span>") %>%
+  
+           #Jun 2017
+   addPolygons(data=jun2, 
+   fillColor = ~pal5(jun2$count),
+   weight = 0.2,
+   fillOpacity = 0.6,
+   color = "white",
+   dashArray = "0.1",
+     highlight = highlightOptions(
+    weight = 5,
+    color = "#666",
+    dashArray = "",
+    fillOpacity = 0.7,
+    bringToFront = TRUE),
+  label= junL,
+  group= "<span style='color:#858585;background:white;font:Arial;font-size:10pt'><strong>June</strong></span>") %>%
+  
+             #Jul 2017
+   addPolygons(data=jul2, 
+   fillColor = ~pal6(jul2$count),
+   weight = 0.2,
+   fillOpacity = 0.6, 
+   color = "white",
+   dashArray = "0.1",
+     highlight = highlightOptions(
+    weight = 5,
+    color = "#666",
+    dashArray = "",
+    fillOpacity = 0.7,
+    bringToFront = TRUE),
+  label= julL,
+  group= "<span style='color:#858585;background:white;font:Arial;font-size:10pt'><strong>July</strong></span>") %>%
+  
+             #Aug 2017
+   addPolygons(data=aug2, 
+   fillColor = ~pal7(aug2$count),
+   weight = 0.2,
+   fillOpacity = 0.6, 
+   color = "white",
+   dashArray = "0.1",
+     highlight = highlightOptions(
+    weight = 5,
+    color = "#666",
+    dashArray = "",
+    fillOpacity = 0.7,
+    bringToFront = TRUE),
+  label= augL,
+  group= "<span style='color:#858585;background:white;font:Arial;font-size:10pt'><strong>August</strong></span>") %>%
+  
+             #Sep 2017
+   addPolygons(data=sep2, 
+   fillColor = ~pal8(sep2$count),
+   weight = 0.2,
+   fillOpacity = 0.6,
+   color = "white",
+   dashArray = "0.1",
+     highlight = highlightOptions(
+    weight = 5,
+    color = "#666",
+    dashArray = "",
+    fillOpacity = 0.7,
+    bringToFront = TRUE),
+  label= sepL,
+  group= "<span style='color:#858585;background:white;font:Arial;font-size:10pt'><strong>September</strong></span>") %>%
+  
+             #Oct 2017
+   addPolygons(data=oct2, 
+   fillColor = ~pal9(oct2$count),
+   weight = 0.2,
+   fillOpacity = 0.6,
+   color = "white",
+   dashArray = "0.1",
+     highlight = highlightOptions(
+    weight = 5,
+    color = "#666",
+    dashArray = "",
+    fillOpacity = 0.7,
+    bringToFront = TRUE),
+  label= octL,
+  group= "<span style='color:#858585;background:white;font:Arial;font-size:10pt'><strong>October</strong></span>") %>%
+  
+             #Nov 2017
+   addPolygons(data=nov2, 
+   fillColor = ~pal10(nov2$count),
+   weight = 0.2,
+   color = "white",
+   dashArray = "0.1",
+   fillOpacity = 0.6,
+     highlight = highlightOptions(
+    weight = 5,
+    color = "#666",
+    dashArray = "",
+    fillOpacity = 0.7,
+    bringToFront = TRUE),
+  label= novL,
+  group= "<span style='color:#858585;background:white;font:Arial;font-size:10pt'><strong>November</strong></span>") %>%
+  
+             #Dec 2017
+   addPolygons(data=dec2, 
+   fillColor = ~pal11(dec2$count),
+   weight = 0.2,
+   fillOpacity = 0.6,
+   color = "white",
+   dashArray = "0.1",
+     highlight = highlightOptions(
+    weight = 5,
+    color = "#666",
+    dashArray = "",
+    fillOpacity = 0.7,
+    bringToFront = TRUE),
+  label= decL,
+  group= "<span style='color:#858585;background:white;font:Arial;font-size:10pt'><strong>December</strong></span>") %>%
+  
+#add group layers with CSS
+  addLayersControl(baseGroups = c(
+      "<span style='color:#858585;background:white;font:Arial;font-size:10pt'><strong>January</strong></span>",
+"<span style='color:#858585;background:white;font:Arial;font-size:10pt'><strong>February</strong></span>",
+"<span style='color:#858585;background:white;font:Arial;font-size:10pt'><strong>March</strong></span>",
+"<span style='color:#858585;background:white;font:Arial;font-size:10pt'><strong>April</strong></span>",
+"<span style='color:#858585;background:white;font:Arial;font-size:10pt'><strong>May</strong></span>",
+"<span style='color:#858585;background:white;font:Arial;font-size:10pt'><strong>June</strong></span>",
+"<span style='color:#858585;background:white;font:Arial;font-size:10pt'><strong>July</strong></span>",
+"<span style='color:#858585;background:white;font:Arial;font-size:10pt'><strong>August</strong></span>",
+"<span style='color:#858585;background:white;font:Arial;font-size:10pt'><strong>September</strong></span>",
+"<span style='color:#858585;background:white;font:Arial;font-size:10pt'><strong>October</strong></span>",
+"<span style='color:#858585;background:white:font:Arial;font-size:10pt'><strong>November</strong></span>",
+"<span style='color:#858585;background:white;font:Arial;font-size:10pt'><strong>December</strong></span>"), options = layersControlOptions(collapsed = FALSE)) %>%
+  
+  #add scale bar
+  addScaleBar(position = c("bottomleft"), options = scaleBarOptions(metric = TRUE)) 
+```
+
+# EXPORT SHAPEFILES
+```{r}
+writeOGR(jan2,'jan',dsn='./jan.shp',driver = 'ESRI Shapefile')
+writeOGR(feb2,'feb',dsn='./feb.shp',driver = 'ESRI Shapefile')
+writeOGR(mar2,'mar',dsn='./mar.shp',driver = 'ESRI Shapefile')
+writeOGR(apr2,'apr',dsn='./apr.shp',driver = 'ESRI Shapefile')
+writeOGR(may2,'may',dsn='./may.shp',driver = 'ESRI Shapefile')
+writeOGR(jun2,'jun',dsn='./jun.shp',driver = 'ESRI Shapefile')
+writeOGR(jul2,'jul',dsn='./jul.shp',driver = 'ESRI Shapefile')
+writeOGR(aug2,'aug',dsn='./aug.shp',driver = 'ESRI Shapefile')
+writeOGR(sep2,'sep',dsn='./sep.shp',driver = 'ESRI Shapefile')
+writeOGR(oct2,'oct',dsn='./oct.shp',driver = 'ESRI Shapefile')
+writeOGR(nov2,'nov',dsn='./nov.shp',driver = 'ESRI Shapefile')
+writeOGR(dec,'dec',dsn='./dec.shp',driver = 'ESRI Shapefile')
+
+```
